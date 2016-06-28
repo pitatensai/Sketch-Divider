@@ -1,62 +1,172 @@
-
 var onRun = function(context) {
-  var selection = context.selection
-  var doc = context.document;
-
-  var bigger;
-  var allLayers = [];
-
-  if([selection count]<2){
+var selection = context.selection
+var doc = context.document;
+var dividedWidth = 0;
+var isIncludeAbstract=true;
+var isFill=true;
+var isHorizontal=true;
+showInputText();
+var OK=1000
+var modal = showInputText();
+var page = doc.currentPage();
+var artboard = page.currentArtboard();
+if ([selection count] < 2) {
     showMessage("please select more layers");
     return;
-  }
+}
+processButtonClick(modal, modal.runModal());
 
-  for (var i = 0; i < [selection count]; i++) {
+function showMessage(text) {
+    [doc showMessage:text];
+}
 
-	var layer = [selection objectAtIndex:i]
+function resetLayer() {
+    var bigger;
+    var allLayers = [];
 
-	var obj = {
-		layer : layer,
-		width : [[layer frame] width],
-		height : [[layer frame] height],
-		x : [[layer frame] x],
-		y : [[layer frame] y]
-	}
 
-	if(!bigger){
-		bigger = obj;
-	}else{
-		if(bigger.width < obj.width]){
-			bigger = obj;
-		}
-	}
 
-	allLayers.push(obj);
+    for (var i = 0; i < [selection count]; i++) {
 
-  }
+        var layer = [selection objectAtIndex:
+        i
+    ]
 
-	function pick(array,elm){
-		var index = array.indexOf(elm);
-		if (index > -1) {
-		    array.splice(index, 1);
-		}
-		return array;
-	}
+        var obj = {
+            layer: layer,
+            width: [[layer frame] width],
+            height: [[layer frame] height],
+            x: [[layer frame] x],
+            y: [[layer frame] y]
+        }
 
-	var others = pick(allLayers,bigger);
+        if (!bigger) {
+            bigger = obj;
+        } else {
+            if (bigger.width < obj.width]
+        )
+            {
+                bigger = obj;
+            }
+        }
 
-	var w = Math.round(bigger.width / others.length);
+        allLayers.push(obj);
 
-	for (var i = 0; i < others.length; i++) {
-		var other = others[i].layer;
-		var x = Math.round(bigger.x+w*i);
-		[[other frame] setX:x];
-		[[other frame] setWidth:w];
-		// [[others[i].layer frame] setX:(bigger.x+w*i)];
-		// [[others[i].layer frame] setWidth:w];
-	}
+    }
 
-    function showMessage(text){
-        [doc showMessage:text];
+    function pick(array, elm) {
+        var index = array.indexOf(elm);
+        if (index > -1) {
+            array.splice(index, 1);
+        }
+        return array;
+    }
+    var others=allLayers;
+    if(!isIncludeAbstract) {
+        others = pick(allLayers, bigger);
+    }else {
+        bigger={
+            layer: artboard,
+            width: [[artboard frame] width],
+            height: [[artboard frame] height],
+            x: 0,
+            y: 0
+        }
+    }
+    var w =(bigger.width-dividedWidth*(others.length-1)) / others.length;
+    var h =(bigger.height-dividedWidth*(others.length-1)) / others.length;
+    for (var i = 0; i < others.length; i++) {
+        var other = others[i].layer;
+        if(isHorizontal){
+            var x = bigger.x + (w+dividedWidth) * i;
+            [[other frame] setX:x];
+            [[other frame] setWidth:w];
+            if(isFill){
+                [[other frame] setHeight:bigger.height];
+                [[other frame] setY:bigger.y]
+            }
+        }else {
+            var y = bigger.y + (h+dividedWidth) * i;
+            [[other frame] setY:y];
+            [[other frame] setHeight:h];
+            if(isFill){
+                [[other frame] setWidth:bigger.width];
+                [[other frame] setX:bigger.x];
+            }
+        }
+        // [[others[i].layer frame] setX:(bigger.x+w*i)];
+        // [[others[i].layer frame] setWidth:w];
     }
 }
+
+function showInputText() {
+
+    var showInputText = COSAlertWindow.new();
+
+    showInputText.setMessageText("Input divided width");
+
+    showInputText.addTextFieldWithValue(dividedWidth);
+
+    showInputText.addTextLabelWithValue("Is include abstract")
+    showInputText.addAccessoryView(createRadioButtons(["Yes", "No"],isIncludeAbstract))
+
+    showInputText.addTextLabelWithValue("Is fill")
+    showInputText.addAccessoryView(createRadioButtons(["Yes", "No"],isFill))
+
+    showInputText.addTextLabelWithValue("Horizontal or Vertical")
+    showInputText.addAccessoryView(createRadioButtons(["Horizontal", "Vertical"],isHorizontal))
+
+    showInputText.addButtonWithTitle('OK');
+    showInputText.addButtonWithTitle('Cancel');
+    return showInputText;
+}
+
+
+function createRadioButtons(options, selectedItem) {
+
+    var rows = Math.ceil(options.length / 2);
+    var columns = ((options.length < 2) ? 1 : 2);
+
+    var selectedRow = Math.floor(selectedItem);
+    var selectedColumn = selectedItem - (selectedRow * 2);
+
+    var buttonCell = [[NSButtonCell alloc] init];
+    [buttonCell setButtonType:NSRadioButton]
+
+    var buttonMatrix = [[NSMatrix alloc] initWithFrame:
+    NSMakeRect(20.0, 20.0, 300.0, rows * 25)
+    mode:NSRadioModeMatrix
+    prototype:buttonCell
+    numberOfRows:rows
+    numberOfColumns:columns];
+    [buttonMatrix setCellSize:NSMakeSize(140, 20)];
+
+    for (i = 0; i < options.length; i++) {
+        [[[buttonMatrix cells] objectAtIndex:i]setTitle: options[i]];
+        [[[buttonMatrix cells] objectAtIndex:i]setTag: i];
+    }
+
+    if (rows * columns > options.length) {
+        [[[buttonMatrix cells] objectAtIndex:(options.length)]setTransparent: true];
+        [[[buttonMatrix cells] objectAtIndex:(options.length)]setEnabled: false];
+    }
+    [buttonMatrix selectCellAtRow:selectedRow column: selectedColumn]
+    return buttonMatrix;
+}
+
+function processButtonClick(modal, buttonClick) {
+
+    var result;
+    log("buttonClick:"+buttonClick);
+    if (buttonClick === OK) {
+        dividedWidth = [[modal viewAtIndex: 0] floatValue];
+        isIncludeAbstract= [[[modal viewAtIndex: 2] selectedCell] tag];
+        isIncludeAbstract=!isIncludeAbstract;
+        isFill= [[[modal viewAtIndex: 4] selectedCell] tag];
+        isFill=!isFill;
+        isHorizontal= [[[modal viewAtIndex: 6] selectedCell] tag];
+        isHorizontal=!isHorizontal;
+        resetLayer();
+    }
+}
+};
